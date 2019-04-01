@@ -1,0 +1,54 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "elasticsearch-data-vm0_OSDisk_SourceUri": {
+      "type": "string",
+      "value": "elasticsearch-data-vm0_OSDisk_SourceUri_BlobCopyResult"
+    },
+    "elasticsearch-data-vm0_DataDisk1_SourceUri": {
+      "type": "string",
+      "value": "elasticsearch-data-vm0_DataDisk1_SourceUri_BlobCopyResult"
+    },
+    "elasticsearch-data-vm0_DataDisk2_SourceUri": {
+      "type": "string",
+      "value": "elasticsearch-data-vm0_DataDisk2_SourceUri_BlobCopyResult"
+    },
+    "elasticsearch-data-vm1_OSDisk_SourceUri": {
+      "type": "string",
+      "value": "elasticsearch-data-vm1_OSDisk_SourceUri_BlobCopyResult"
+    },
+    "elasticsearch-data-vm1_DataDisk1_SourceUri": {
+      "type": "string",
+      "value": "elasticsearch-data-vm1_DataDisk1_SourceUri_BlobCopyResult"
+    },
+    "elasticsearch-data-vm1_DataDisk2_SourceUri": {
+      "type": "string",
+      "value": "elasticsearch-data-vm1_DataDisk2_SourceUri_BlobCopyResult"
+    },
+    "elasticsearch-kibana-vm_OSDisk_SourceUri": {
+      "type": "string",
+      "value": "elasticsearch-kibana-vm_OSDisk_SourceUri_BlobCopyResult"
+    },
+    "elasticsearch-kibana-vm1_OSDisk_SourceUri": {
+      "type": "string",
+      "value": "elasticsearch-kibana-vm1_OSDisk_SourceUri_BlobCopyResult"
+    },
+    "elasticsearch-kibana-vm2_OSDisk_SourceUri": {
+      "type": "string",
+      "value": "elasticsearch-kibana-vm2_OSDisk_SourceUri_BlobCopyResult"
+    },
+    "elasticsearch-master-vm0_OSDisk_SourceUri": {
+      "type": "string",
+      "value": "elasticsearch-master-vm0_OSDisk_SourceUri_BlobCopyResult"
+    },
+    "elasticsearch-master-vm1_OSDisk_SourceUri": {
+      "type": "string",
+      "value": "elasticsearch-master-vm1_OSDisk_SourceUri_BlobCopyResult"
+    },
+    "elasticsearch-master-vm2_OSDisk_SourceUri": {
+      "type": "string",
+      "value": "elasticsearch-master-vm2_OSDisk_SourceUri_BlobCopyResult"
+    }
+  }
+}

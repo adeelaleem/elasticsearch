@@ -1,0 +1,1145 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "elasticsearch-data-vm0_OSDisk_SourceUri": {
+      "type": "string"
+    },
+    "elasticsearch-data-vm0_DataDisk1_SourceUri": {
+      "type": "string"
+    },
+    "elasticsearch-data-vm0_DataDisk2_SourceUri": {
+      "type": "string"
+    },
+    "elasticsearch-data-vm1_OSDisk_SourceUri": {
+      "type": "string"
+    },
+    "elasticsearch-data-vm1_DataDisk1_SourceUri": {
+      "type": "string"
+    },
+    "elasticsearch-data-vm1_DataDisk2_SourceUri": {
+      "type": "string"
+    },
+    "elasticsearch-kibana-vm_OSDisk_SourceUri": {
+      "type": "string"
+    },
+    "elasticsearch-kibana-vm1_OSDisk_SourceUri": {
+      "type": "string"
+    },
+    "elasticsearch-kibana-vm2_OSDisk_SourceUri": {
+      "type": "string"
+    },
+    "elasticsearch-master-vm0_OSDisk_SourceUri": {
+      "type": "string"
+    },
+    "elasticsearch-master-vm1_OSDisk_SourceUri": {
+      "type": "string"
+    },
+    "elasticsearch-master-vm2_OSDisk_SourceUri": {
+      "type": "string"
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Storage/storageAccounts",
+      "apiVersion": "2015-06-15",
+      "name": "stzz3lelaafsv2v2",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "migAz": "3ff8cdc4-a3db-48a8-a97c-d2524df626e9"
+      },
+      "properties": {
+        "accountType": "Standard_LRS"
+      }
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts",
+      "apiVersion": "2015-06-15",
+      "name": "stzz3lelashv2v2",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "migAz": "3ff8cdc4-a3db-48a8-a97c-d2524df626e9"
+      },
+      "properties": {
+        "accountType": "Standard_LRS"
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkSecurityGroups",
+      "apiVersion": "2015-06-15",
+      "name": "elasticsearch-kibana-nsg",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "migAz": "3ff8cdc4-a3db-48a8-a97c-d2524df626e9"
+      },
+      "properties": {
+        "securityRules": [
+          {
+            "name": "SSH",
+            "properties": {
+              "description": "SSH",
+              "protocol": "Tcp",
+              "sourcePortRange": "3389",
+              "destinationPortRange": "3389",
+              "sourceAddressPrefix": "*",
+              "destinationAddressPrefix": "*",
+              "access": "Allow",
+              "priority": 100,
+              "direction": "Inbound"
+            }
+          },
+          {
+            "name": "Kibana",
+            "properties": {
+              "description": "Kibana",
+              "protocol": "Tcp",
+              "sourcePortRange": "5601",
+              "destinationPortRange": "5601",
+              "sourceAddressPrefix": "*",
+              "destinationAddressPrefix": "*",
+              "access": "Allow",
+              "priority": 200,
+              "direction": "Inbound"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Network/publicIPAddresses",
+      "apiVersion": "2015-06-15",
+      "name": "elasticsearch-kibana-pip",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "migAz": "3ff8cdc4-a3db-48a8-a97c-d2524df626e9"
+      },
+      "properties": {
+        "publicIPAllocationMethod": "Static"
+      }
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks",
+      "apiVersion": "2015-06-15",
+      "name": "esvnet",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "migAz": "3ff8cdc4-a3db-48a8-a97c-d2524df626e9"
+      },
+      "dependsOn": [],
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": [
+            "10.0.0.0/16"
+          ]
+        },
+        "subnets": [
+          {
+            "name": "master",
+            "properties": {
+              "addressPrefix": "10.0.0.0/24"
+            }
+          },
+          {
+            "name": "data",
+            "properties": {
+              "addressPrefix": "10.0.1.0/24"
+            }
+          },
+          {
+            "name": "other",
+            "properties": {
+              "addressPrefix": "10.0.2.0/24"
+            }
+          }
+        ],
+        "dhcpOptions": {
+          "dnsServers": []
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Network/loadBalancers",
+      "apiVersion": "2015-06-15",
+      "name": "es-load-balancer",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "migAz": "3ff8cdc4-a3db-48a8-a97c-d2524df626e9"
+      },
+      "dependsOn": [],
+      "properties": {
+        "frontendIPConfigurations": [
+          {
+            "name": "LoadBalancerFrontEnd",
+            "properties": {
+              "privateIPAllocationMethod": "Static",
+              "privateIPAddress": "10.0.0.20",
+              "subnet": {
+                "id": "/subscriptions/5c4178de-3ebd-4dfe-9032-87c16a7f43db/resourceGroups/ElasticSearch-RG/providers/Microsoft.Network/virtualNetworks/esvnet/subnets/master"
+              }
+            }
+          }
+        ],
+        "backendAddressPools": [
+          {
+            "name": "LBBE"
+          }
+        ],
+        "inboundNatRules": [],
+        "loadBalancingRules": [
+          {
+            "name": "es-http-rule",
+            "properties": {
+              "frontendIPConfiguration": {
+                "id": "[concat(resourceGroup().id, '/providers/Microsoft.Network/loadBalancers/es-load-balancer/frontendIPConfigurations/LoadBalancerFrontEnd')]"
+              },
+              "backendAddressPool": {
+                "id": "[concat(resourceGroup().id, '/providers/Microsoft.Network/loadBalancers/es-load-balancer/backendAddressPools/LBBE')]"
+              },
+              "probe": {
+                "id": "[concat(resourceGroup().id,'/providers/Microsoft.Network/loadBalancers/es-load-balancer/probes/es-tcp-probe')]"
+              },
+              "protocol": "Tcp",
+              "frontendPort": 9200,
+              "backendPort": 9200,
+              "idleTimeoutInMinutes": 5,
+              "loadDistribution": "SourceIP",
+              "enableFloatingIP": false
+            }
+          },
+          {
+            "name": "es-tcp-rule",
+            "properties": {
+              "frontendIPConfiguration": {
+                "id": "[concat(resourceGroup().id, '/providers/Microsoft.Network/loadBalancers/es-load-balancer/frontendIPConfigurations/LoadBalancerFrontEnd')]"
+              },
+              "backendAddressPool": {
+                "id": "[concat(resourceGroup().id, '/providers/Microsoft.Network/loadBalancers/es-load-balancer/backendAddressPools/LBBE')]"
+              },
+              "probe": {
+                "id": "[concat(resourceGroup().id,'/providers/Microsoft.Network/loadBalancers/es-load-balancer/probes/es-tcp-probe')]"
+              },
+              "protocol": "Tcp",
+              "frontendPort": 9300,
+              "backendPort": 9300,
+              "idleTimeoutInMinutes": 4,
+              "loadDistribution": "SourceIP",
+              "enableFloatingIP": false
+            }
+          }
+        ],
+        "probes": [
+          {
+            "name": "es-tcp-probe",
+            "properties": {
+              "protocol": "Tcp",
+              "port": 9200,
+              "intervalInSeconds": 30,
+              "numberOfProbes": 3
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Compute/availabilitySets",
+      "apiVersion": "2017-03-30",
+      "name": "es-data-set",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "migAz": "3ff8cdc4-a3db-48a8-a97c-d2524df626e9"
+      },
+      "sku": {
+        "name": "Aligned"
+      },
+      "properties": {
+        "platformUpdateDomainCount": 20,
+        "platformFaultDomainCount": 3
+      }
+    },
+    {
+      "type": "Microsoft.Compute/availabilitySets",
+      "apiVersion": "2017-03-30",
+      "name": "es-kibana-set",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "migAz": "3ff8cdc4-a3db-48a8-a97c-d2524df626e9"
+      },
+      "sku": {
+        "name": "Aligned"
+      },
+      "properties": {
+        "platformUpdateDomainCount": 5,
+        "platformFaultDomainCount": 3
+      }
+    },
+    {
+      "type": "Microsoft.Compute/availabilitySets",
+      "apiVersion": "2017-03-30",
+      "name": "es-master-set",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "migAz": "3ff8cdc4-a3db-48a8-a97c-d2524df626e9"
+      },
+      "sku": {
+        "name": "Aligned"
+      },
+      "properties": {
+        "platformUpdateDomainCount": 5,
+        "platformFaultDomainCount": 3
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkInterfaces",
+      "apiVersion": "2017-10-01",
+      "name": "elasticsearch-data-nic0",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "migAz": "3ff8cdc4-a3db-48a8-a97c-d2524df626e9"
+      },
+      "dependsOn": [
+        "[concat(resourceGroup().id, '/providers/Microsoft.Network/virtualNetworks/esvnet')]"
+      ],
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAllocationMethod": "Dynamic",
+              "subnet": {
+                "id": "[concat(resourceGroup().id, '/providers/Microsoft.Network/virtualNetworks/esvnet/subnets/data')]"
+              }
+            }
+          }
+        ],
+        "enableIPForwarding": false,
+        "enableAcceleratedNetworking": false
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkInterfaces",
+      "apiVersion": "2017-10-01",
+      "name": "elasticsearch-data-nic1",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "migAz": "3ff8cdc4-a3db-48a8-a97c-d2524df626e9"
+      },
+      "dependsOn": [
+        "[concat(resourceGroup().id, '/providers/Microsoft.Network/virtualNetworks/esvnet')]"
+      ],
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAllocationMethod": "Dynamic",
+              "subnet": {
+                "id": "[concat(resourceGroup().id, '/providers/Microsoft.Network/virtualNetworks/esvnet/subnets/data')]"
+              }
+            }
+          }
+        ],
+        "enableIPForwarding": false,
+        "enableAcceleratedNetworking": false
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkInterfaces",
+      "apiVersion": "2017-10-01",
+      "name": "elasticsearch-kibana-nic",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "migAz": "3ff8cdc4-a3db-48a8-a97c-d2524df626e9"
+      },
+      "dependsOn": [
+        "[concat(resourceGroup().id, '/providers/Microsoft.Network/virtualNetworks/esvnet')]",
+        "[concat(resourceGroup().id, '/providers/Microsoft.Network/publicIPAddresses/elasticsearch-kibana-pip')]"
+      ],
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAllocationMethod": "Dynamic",
+              "publicIPAddress": {
+                "id": "[concat(resourceGroup().id, '/providers/Microsoft.Network/publicIPAddresses/elasticsearch-kibana-pip')]"
+              },
+              "subnet": {
+                "id": "[concat(resourceGroup().id, '/providers/Microsoft.Network/virtualNetworks/esvnet/subnets/other')]"
+              }
+            }
+          }
+        ],
+        "enableIPForwarding": false,
+        "enableAcceleratedNetworking": false
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkInterfaces",
+      "apiVersion": "2017-10-01",
+      "name": "es-kibana-vm1878",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "migAz": "3ff8cdc4-a3db-48a8-a97c-d2524df626e9"
+      },
+      "dependsOn": [
+        "[concat(resourceGroup().id, '/providers/Microsoft.Network/virtualNetworks/esvnet')]",
+        "[concat(resourceGroup().id, '/providers/Microsoft.Network/networkSecurityGroups/elasticsearch-kibana-nsg')]"
+      ],
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAllocationMethod": "Dynamic",
+              "subnet": {
+                "id": "[concat(resourceGroup().id, '/providers/Microsoft.Network/virtualNetworks/esvnet/subnets/other')]"
+              }
+            }
+          }
+        ],
+        "enableIPForwarding": false,
+        "enableAcceleratedNetworking": false,
+        "NetworkSecurityGroup": {
+          "id": "[concat(resourceGroup().id, '/providers/Microsoft.Network/networkSecurityGroups/elasticsearch-kibana-nsg')]"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkInterfaces",
+      "apiVersion": "2017-10-01",
+      "name": "es-kibana-vm2723",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "migAz": "3ff8cdc4-a3db-48a8-a97c-d2524df626e9"
+      },
+      "dependsOn": [
+        "[concat(resourceGroup().id, '/providers/Microsoft.Network/virtualNetworks/esvnet')]",
+        "[concat(resourceGroup().id, '/providers/Microsoft.Network/networkSecurityGroups/elasticsearch-kibana-nsg')]"
+      ],
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAllocationMethod": "Dynamic",
+              "subnet": {
+                "id": "[concat(resourceGroup().id, '/providers/Microsoft.Network/virtualNetworks/esvnet/subnets/other')]"
+              }
+            }
+          }
+        ],
+        "enableIPForwarding": false,
+        "enableAcceleratedNetworking": false,
+        "NetworkSecurityGroup": {
+          "id": "[concat(resourceGroup().id, '/providers/Microsoft.Network/networkSecurityGroups/elasticsearch-kibana-nsg')]"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkInterfaces",
+      "apiVersion": "2017-10-01",
+      "name": "elasticsearch-master-nic0",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "migAz": "3ff8cdc4-a3db-48a8-a97c-d2524df626e9"
+      },
+      "dependsOn": [
+        "[concat(resourceGroup().id, '/providers/Microsoft.Network/virtualNetworks/esvnet')]"
+      ],
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAllocationMethod": "Static",
+              "privateIPAddress": "10.0.0.10",
+              "subnet": {
+                "id": "[concat(resourceGroup().id, '/providers/Microsoft.Network/virtualNetworks/esvnet/subnets/master')]"
+              }
+            }
+          }
+        ],
+        "enableIPForwarding": false,
+        "enableAcceleratedNetworking": false
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkInterfaces",
+      "apiVersion": "2017-10-01",
+      "name": "elasticsearch-master-nic1",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "migAz": "3ff8cdc4-a3db-48a8-a97c-d2524df626e9"
+      },
+      "dependsOn": [
+        "[concat(resourceGroup().id, '/providers/Microsoft.Network/virtualNetworks/esvnet')]"
+      ],
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAllocationMethod": "Static",
+              "privateIPAddress": "10.0.0.11",
+              "subnet": {
+                "id": "[concat(resourceGroup().id, '/providers/Microsoft.Network/virtualNetworks/esvnet/subnets/master')]"
+              }
+            }
+          }
+        ],
+        "enableIPForwarding": false,
+        "enableAcceleratedNetworking": false
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkInterfaces",
+      "apiVersion": "2017-10-01",
+      "name": "elasticsearch-master-nic2",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "migAz": "3ff8cdc4-a3db-48a8-a97c-d2524df626e9"
+      },
+      "dependsOn": [
+        "[concat(resourceGroup().id, '/providers/Microsoft.Network/virtualNetworks/esvnet')]"
+      ],
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAllocationMethod": "Static",
+              "privateIPAddress": "10.0.0.12",
+              "subnet": {
+                "id": "[concat(resourceGroup().id, '/providers/Microsoft.Network/virtualNetworks/esvnet/subnets/master')]"
+              }
+            }
+          }
+        ],
+        "enableIPForwarding": false,
+        "enableAcceleratedNetworking": false
+      }
+    },
+    {
+      "type": "Microsoft.Compute/disks",
+      "apiVersion": "2017-03-30",
+      "name": "elasticsearch-data-vm0_OSDisk",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "migAz": "3ff8cdc4-a3db-48a8-a97c-d2524df626e9"
+      },
+      "sku": {
+        "name": "Standard_LRS"
+      },
+      "properties": {
+        "creationData": {
+          "createOption": "Import",
+          "sourceUri": "[parameters('elasticsearch-data-vm0_OSDisk_SourceUri')]"
+        },
+        "diskSizeGb": 127
+      }
+    },
+    {
+      "type": "Microsoft.Compute/disks",
+      "apiVersion": "2017-03-30",
+      "name": "elasticsearch-data-vm0_DataDisk1",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "migAz": "3ff8cdc4-a3db-48a8-a97c-d2524df626e9"
+      },
+      "sku": {
+        "name": "Premium_LRS"
+      },
+      "properties": {
+        "creationData": {
+          "createOption": "Import",
+          "sourceUri": "[parameters('elasticsearch-data-vm0_DataDisk1_SourceUri')]"
+        },
+        "diskSizeGb": 128
+      }
+    },
+    {
+      "type": "Microsoft.Compute/disks",
+      "apiVersion": "2017-03-30",
+      "name": "elasticsearch-data-vm0_DataDisk2",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "migAz": "3ff8cdc4-a3db-48a8-a97c-d2524df626e9"
+      },
+      "sku": {
+        "name": "Premium_LRS"
+      },
+      "properties": {
+        "creationData": {
+          "createOption": "Import",
+          "sourceUri": "[parameters('elasticsearch-data-vm0_DataDisk2_SourceUri')]"
+        },
+        "diskSizeGb": 128
+      }
+    },
+    {
+      "type": "Microsoft.Compute/disks",
+      "apiVersion": "2017-03-30",
+      "name": "elasticsearch-data-vm1_OSDisk",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "migAz": "3ff8cdc4-a3db-48a8-a97c-d2524df626e9"
+      },
+      "sku": {
+        "name": "Standard_LRS"
+      },
+      "properties": {
+        "creationData": {
+          "createOption": "Import",
+          "sourceUri": "[parameters('elasticsearch-data-vm1_OSDisk_SourceUri')]"
+        },
+        "diskSizeGb": 127
+      }
+    },
+    {
+      "type": "Microsoft.Compute/disks",
+      "apiVersion": "2017-03-30",
+      "name": "elasticsearch-data-vm1_DataDisk1",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "migAz": "3ff8cdc4-a3db-48a8-a97c-d2524df626e9"
+      },
+      "sku": {
+        "name": "Premium_LRS"
+      },
+      "properties": {
+        "creationData": {
+          "createOption": "Import",
+          "sourceUri": "[parameters('elasticsearch-data-vm1_DataDisk1_SourceUri')]"
+        },
+        "diskSizeGb": 128
+      }
+    },
+    {
+      "type": "Microsoft.Compute/disks",
+      "apiVersion": "2017-03-30",
+      "name": "elasticsearch-data-vm1_DataDisk2",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "migAz": "3ff8cdc4-a3db-48a8-a97c-d2524df626e9"
+      },
+      "sku": {
+        "name": "Premium_LRS"
+      },
+      "properties": {
+        "creationData": {
+          "createOption": "Import",
+          "sourceUri": "[parameters('elasticsearch-data-vm1_DataDisk2_SourceUri')]"
+        },
+        "diskSizeGb": 128
+      }
+    },
+    {
+      "type": "Microsoft.Compute/disks",
+      "apiVersion": "2017-03-30",
+      "name": "elasticsearch-kibana-vm_OSDisk",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "migAz": "3ff8cdc4-a3db-48a8-a97c-d2524df626e9"
+      },
+      "sku": {
+        "name": "Standard_LRS"
+      },
+      "properties": {
+        "creationData": {
+          "createOption": "Import",
+          "sourceUri": "[parameters('elasticsearch-kibana-vm_OSDisk_SourceUri')]"
+        },
+        "diskSizeGb": 127
+      }
+    },
+    {
+      "type": "Microsoft.Compute/disks",
+      "apiVersion": "2017-03-30",
+      "name": "elasticsearch-kibana-vm1_OSDisk",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "migAz": "3ff8cdc4-a3db-48a8-a97c-d2524df626e9"
+      },
+      "sku": {
+        "name": "Standard_LRS"
+      },
+      "properties": {
+        "creationData": {
+          "createOption": "Import",
+          "sourceUri": "[parameters('elasticsearch-kibana-vm1_OSDisk_SourceUri')]"
+        },
+        "diskSizeGb": 127
+      }
+    },
+    {
+      "type": "Microsoft.Compute/disks",
+      "apiVersion": "2017-03-30",
+      "name": "elasticsearch-kibana-vm2_OSDisk",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "migAz": "3ff8cdc4-a3db-48a8-a97c-d2524df626e9"
+      },
+      "sku": {
+        "name": "Standard_LRS"
+      },
+      "properties": {
+        "creationData": {
+          "createOption": "Import",
+          "sourceUri": "[parameters('elasticsearch-kibana-vm2_OSDisk_SourceUri')]"
+        },
+        "diskSizeGb": 127
+      }
+    },
+    {
+      "type": "Microsoft.Compute/disks",
+      "apiVersion": "2017-03-30",
+      "name": "elasticsearch-master-vm0_OSDisk",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "migAz": "3ff8cdc4-a3db-48a8-a97c-d2524df626e9"
+      },
+      "sku": {
+        "name": "Standard_LRS"
+      },
+      "properties": {
+        "creationData": {
+          "createOption": "Import",
+          "sourceUri": "[parameters('elasticsearch-master-vm0_OSDisk_SourceUri')]"
+        },
+        "diskSizeGb": 127
+      }
+    },
+    {
+      "type": "Microsoft.Compute/disks",
+      "apiVersion": "2017-03-30",
+      "name": "elasticsearch-master-vm1_OSDisk",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "migAz": "3ff8cdc4-a3db-48a8-a97c-d2524df626e9"
+      },
+      "sku": {
+        "name": "Standard_LRS"
+      },
+      "properties": {
+        "creationData": {
+          "createOption": "Import",
+          "sourceUri": "[parameters('elasticsearch-master-vm1_OSDisk_SourceUri')]"
+        },
+        "diskSizeGb": 127
+      }
+    },
+    {
+      "type": "Microsoft.Compute/disks",
+      "apiVersion": "2017-03-30",
+      "name": "elasticsearch-master-vm2_OSDisk",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "migAz": "3ff8cdc4-a3db-48a8-a97c-d2524df626e9"
+      },
+      "sku": {
+        "name": "Standard_LRS"
+      },
+      "properties": {
+        "creationData": {
+          "createOption": "Import",
+          "sourceUri": "[parameters('elasticsearch-master-vm2_OSDisk_SourceUri')]"
+        },
+        "diskSizeGb": 127
+      }
+    },
+    {
+      "resources": [],
+      "type": "Microsoft.Compute/virtualMachines",
+      "apiVersion": "2017-03-30",
+      "name": "elasticsearch-data-vm1",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "migAz": "3ff8cdc4-a3db-48a8-a97c-d2524df626e9"
+      },
+      "dependsOn": [
+        "[concat(resourceGroup().id, '/providers/Microsoft.Network/networkInterfaces/elasticsearch-data-nic1')]",
+        "[concat(subscription().id, '/resourcegroups/', resourceGroup().name, '/providers/Microsoft.Compute/disks/', 'elasticsearch-data-vm1_OSDisk')]",
+        "[concat(subscription().id, '/resourcegroups/', resourceGroup().name, '/providers/Microsoft.Compute/disks/', 'elasticsearch-data-vm1_DataDisk1')]",
+        "[concat(subscription().id, '/resourcegroups/', resourceGroup().name, '/providers/Microsoft.Compute/disks/', 'elasticsearch-data-vm1_DataDisk2')]",
+        "[concat(resourceGroup().id, '/providers/Microsoft.Compute/availabilitySets/es-data-set')]"
+      ],
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "Standard_E2s_v3"
+        },
+        "availabilitySet": {
+          "id": "[concat(resourceGroup().id, '/providers/Microsoft.Compute/availabilitySets/es-data-set')]"
+        },
+        "storageProfile": {
+          "osDisk": {
+            "osType": "Windows",
+            "managedDisk": {
+              "id": "[concat(subscription().id, '/resourcegroups/', resourceGroup().name, '/providers/Microsoft.Compute/disks/', 'elasticsearch-data-vm1_OSDisk')]"
+            },
+            "caching": "ReadWrite",
+            "createOption": "Attach"
+          },
+          "dataDisks": [
+            {
+              "name": "elasticsearch-data-vm1_DataDisk1",
+              "managedDisk": {
+                "id": "[concat(subscription().id, '/resourcegroups/', resourceGroup().name, '/providers/Microsoft.Compute/disks/', 'elasticsearch-data-vm1_DataDisk1')]"
+              },
+              "caching": "ReadWrite",
+              "createOption": "Attach",
+              "lun": 0
+            },
+            {
+              "name": "elasticsearch-data-vm1_DataDisk2",
+              "managedDisk": {
+                "id": "[concat(subscription().id, '/resourcegroups/', resourceGroup().name, '/providers/Microsoft.Compute/disks/', 'elasticsearch-data-vm1_DataDisk2')]"
+              },
+              "caching": "ReadWrite",
+              "createOption": "Attach",
+              "lun": 1
+            }
+          ]
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[concat(resourceGroup().id, '/providers/Microsoft.Network/networkInterfaces/elasticsearch-data-nic1')]",
+              "properties": {
+                "primary": true
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "resources": [],
+      "type": "Microsoft.Compute/virtualMachines",
+      "apiVersion": "2017-03-30",
+      "name": "elasticsearch-data-vm0",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "migAz": "3ff8cdc4-a3db-48a8-a97c-d2524df626e9"
+      },
+      "dependsOn": [
+        "[concat(resourceGroup().id, '/providers/Microsoft.Network/networkInterfaces/elasticsearch-data-nic0')]",
+        "[concat(subscription().id, '/resourcegroups/', resourceGroup().name, '/providers/Microsoft.Compute/disks/', 'elasticsearch-data-vm0_OSDisk')]",
+        "[concat(subscription().id, '/resourcegroups/', resourceGroup().name, '/providers/Microsoft.Compute/disks/', 'elasticsearch-data-vm0_DataDisk1')]",
+        "[concat(subscription().id, '/resourcegroups/', resourceGroup().name, '/providers/Microsoft.Compute/disks/', 'elasticsearch-data-vm0_DataDisk2')]",
+        "[concat(resourceGroup().id, '/providers/Microsoft.Compute/availabilitySets/es-data-set')]"
+      ],
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "Standard_E2s_v3"
+        },
+        "availabilitySet": {
+          "id": "[concat(resourceGroup().id, '/providers/Microsoft.Compute/availabilitySets/es-data-set')]"
+        },
+        "storageProfile": {
+          "osDisk": {
+            "osType": "Windows",
+            "managedDisk": {
+              "id": "[concat(subscription().id, '/resourcegroups/', resourceGroup().name, '/providers/Microsoft.Compute/disks/', 'elasticsearch-data-vm0_OSDisk')]"
+            },
+            "caching": "ReadWrite",
+            "createOption": "Attach"
+          },
+          "dataDisks": [
+            {
+              "name": "elasticsearch-data-vm0_DataDisk1",
+              "managedDisk": {
+                "id": "[concat(subscription().id, '/resourcegroups/', resourceGroup().name, '/providers/Microsoft.Compute/disks/', 'elasticsearch-data-vm0_DataDisk1')]"
+              },
+              "caching": "ReadWrite",
+              "createOption": "Attach",
+              "lun": 0
+            },
+            {
+              "name": "elasticsearch-data-vm0_DataDisk2",
+              "managedDisk": {
+                "id": "[concat(subscription().id, '/resourcegroups/', resourceGroup().name, '/providers/Microsoft.Compute/disks/', 'elasticsearch-data-vm0_DataDisk2')]"
+              },
+              "caching": "ReadWrite",
+              "createOption": "Attach",
+              "lun": 1
+            }
+          ]
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[concat(resourceGroup().id, '/providers/Microsoft.Network/networkInterfaces/elasticsearch-data-nic0')]",
+              "properties": {
+                "primary": true
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "resources": [],
+      "type": "Microsoft.Compute/virtualMachines",
+      "apiVersion": "2017-03-30",
+      "name": "es-kibana-vm1",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "migAz": "3ff8cdc4-a3db-48a8-a97c-d2524df626e9"
+      },
+      "dependsOn": [
+        "[concat(resourceGroup().id, '/providers/Microsoft.Network/networkInterfaces/es-kibana-vm1878')]",
+        "[concat(subscription().id, '/resourcegroups/', resourceGroup().name, '/providers/Microsoft.Compute/disks/', 'elasticsearch-kibana-vm1_OSDisk')]",
+        "[concat(resourceGroup().id, '/providers/Microsoft.Compute/availabilitySets/es-kibana-set')]"
+      ],
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "Standard_D1_v2"
+        },
+        "availabilitySet": {
+          "id": "[concat(resourceGroup().id, '/providers/Microsoft.Compute/availabilitySets/es-kibana-set')]"
+        },
+        "storageProfile": {
+          "osDisk": {
+            "osType": "Windows",
+            "managedDisk": {
+              "id": "[concat(subscription().id, '/resourcegroups/', resourceGroup().name, '/providers/Microsoft.Compute/disks/', 'elasticsearch-kibana-vm1_OSDisk')]"
+            },
+            "caching": "ReadWrite",
+            "createOption": "Attach"
+          },
+          "dataDisks": []
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[concat(resourceGroup().id, '/providers/Microsoft.Network/networkInterfaces/es-kibana-vm1878')]",
+              "properties": {
+                "primary": true
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "resources": [],
+      "type": "Microsoft.Compute/virtualMachines",
+      "apiVersion": "2017-03-30",
+      "name": "es-kibana-vm2",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "migAz": "3ff8cdc4-a3db-48a8-a97c-d2524df626e9"
+      },
+      "dependsOn": [
+        "[concat(resourceGroup().id, '/providers/Microsoft.Network/networkInterfaces/es-kibana-vm2723')]",
+        "[concat(subscription().id, '/resourcegroups/', resourceGroup().name, '/providers/Microsoft.Compute/disks/', 'elasticsearch-kibana-vm2_OSDisk')]",
+        "[concat(resourceGroup().id, '/providers/Microsoft.Compute/availabilitySets/es-kibana-set')]"
+      ],
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "Standard_D1_v2"
+        },
+        "availabilitySet": {
+          "id": "[concat(resourceGroup().id, '/providers/Microsoft.Compute/availabilitySets/es-kibana-set')]"
+        },
+        "storageProfile": {
+          "osDisk": {
+            "osType": "Windows",
+            "managedDisk": {
+              "id": "[concat(subscription().id, '/resourcegroups/', resourceGroup().name, '/providers/Microsoft.Compute/disks/', 'elasticsearch-kibana-vm2_OSDisk')]"
+            },
+            "caching": "ReadWrite",
+            "createOption": "Attach"
+          },
+          "dataDisks": []
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[concat(resourceGroup().id, '/providers/Microsoft.Network/networkInterfaces/es-kibana-vm2723')]",
+              "properties": {
+                "primary": true
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "resources": [],
+      "type": "Microsoft.Compute/virtualMachines",
+      "apiVersion": "2017-03-30",
+      "name": "elasticsearch-kibana-vm",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "migAz": "3ff8cdc4-a3db-48a8-a97c-d2524df626e9"
+      },
+      "dependsOn": [
+        "[concat(resourceGroup().id, '/providers/Microsoft.Network/networkInterfaces/elasticsearch-kibana-nic')]",
+        "[concat(subscription().id, '/resourcegroups/', resourceGroup().name, '/providers/Microsoft.Compute/disks/', 'elasticsearch-kibana-vm_OSDisk')]",
+        "[concat(resourceGroup().id, '/providers/Microsoft.Compute/availabilitySets/es-kibana-set')]"
+      ],
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "Standard_D1_v2"
+        },
+        "availabilitySet": {
+          "id": "[concat(resourceGroup().id, '/providers/Microsoft.Compute/availabilitySets/es-kibana-set')]"
+        },
+        "storageProfile": {
+          "osDisk": {
+            "osType": "Windows",
+            "managedDisk": {
+              "id": "[concat(subscription().id, '/resourcegroups/', resourceGroup().name, '/providers/Microsoft.Compute/disks/', 'elasticsearch-kibana-vm_OSDisk')]"
+            },
+            "caching": "ReadWrite",
+            "createOption": "Attach"
+          },
+          "dataDisks": []
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[concat(resourceGroup().id, '/providers/Microsoft.Network/networkInterfaces/elasticsearch-kibana-nic')]",
+              "properties": {
+                "primary": true
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "resources": [],
+      "type": "Microsoft.Compute/virtualMachines",
+      "apiVersion": "2017-03-30",
+      "name": "elasticsearch-master-vm1",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "migAz": "3ff8cdc4-a3db-48a8-a97c-d2524df626e9"
+      },
+      "dependsOn": [
+        "[concat(resourceGroup().id, '/providers/Microsoft.Network/networkInterfaces/elasticsearch-master-nic1')]",
+        "[concat(subscription().id, '/resourcegroups/', resourceGroup().name, '/providers/Microsoft.Compute/disks/', 'elasticsearch-master-vm1_OSDisk')]",
+        "[concat(resourceGroup().id, '/providers/Microsoft.Compute/availabilitySets/es-master-set')]"
+      ],
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "Standard_D1_v2"
+        },
+        "availabilitySet": {
+          "id": "[concat(resourceGroup().id, '/providers/Microsoft.Compute/availabilitySets/es-master-set')]"
+        },
+        "storageProfile": {
+          "osDisk": {
+            "osType": "Windows",
+            "managedDisk": {
+              "id": "[concat(subscription().id, '/resourcegroups/', resourceGroup().name, '/providers/Microsoft.Compute/disks/', 'elasticsearch-master-vm1_OSDisk')]"
+            },
+            "caching": "ReadWrite",
+            "createOption": "Attach"
+          },
+          "dataDisks": []
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[concat(resourceGroup().id, '/providers/Microsoft.Network/networkInterfaces/elasticsearch-master-nic1')]",
+              "properties": {
+                "primary": true
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "resources": [],
+      "type": "Microsoft.Compute/virtualMachines",
+      "apiVersion": "2017-03-30",
+      "name": "elasticsearch-master-vm2",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "migAz": "3ff8cdc4-a3db-48a8-a97c-d2524df626e9"
+      },
+      "dependsOn": [
+        "[concat(resourceGroup().id, '/providers/Microsoft.Network/networkInterfaces/elasticsearch-master-nic2')]",
+        "[concat(subscription().id, '/resourcegroups/', resourceGroup().name, '/providers/Microsoft.Compute/disks/', 'elasticsearch-master-vm2_OSDisk')]",
+        "[concat(resourceGroup().id, '/providers/Microsoft.Compute/availabilitySets/es-master-set')]"
+      ],
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "Standard_D1_v2"
+        },
+        "availabilitySet": {
+          "id": "[concat(resourceGroup().id, '/providers/Microsoft.Compute/availabilitySets/es-master-set')]"
+        },
+        "storageProfile": {
+          "osDisk": {
+            "osType": "Windows",
+            "managedDisk": {
+              "id": "[concat(subscription().id, '/resourcegroups/', resourceGroup().name, '/providers/Microsoft.Compute/disks/', 'elasticsearch-master-vm2_OSDisk')]"
+            },
+            "caching": "ReadWrite",
+            "createOption": "Attach"
+          },
+          "dataDisks": []
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[concat(resourceGroup().id, '/providers/Microsoft.Network/networkInterfaces/elasticsearch-master-nic2')]",
+              "properties": {
+                "primary": true
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "resources": [],
+      "type": "Microsoft.Compute/virtualMachines",
+      "apiVersion": "2017-03-30",
+      "name": "elasticsearch-master-vm0",
+      "location": "[resourceGroup().location]",
+      "tags": {
+        "migAz": "3ff8cdc4-a3db-48a8-a97c-d2524df626e9"
+      },
+      "dependsOn": [
+        "[concat(resourceGroup().id, '/providers/Microsoft.Network/networkInterfaces/elasticsearch-master-nic0')]",
+        "[concat(subscription().id, '/resourcegroups/', resourceGroup().name, '/providers/Microsoft.Compute/disks/', 'elasticsearch-master-vm0_OSDisk')]",
+        "[concat(resourceGroup().id, '/providers/Microsoft.Compute/availabilitySets/es-master-set')]"
+      ],
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "Standard_D1_v2"
+        },
+        "availabilitySet": {
+          "id": "[concat(resourceGroup().id, '/providers/Microsoft.Compute/availabilitySets/es-master-set')]"
+        },
+        "storageProfile": {
+          "osDisk": {
+            "osType": "Windows",
+            "managedDisk": {
+              "id": "[concat(subscription().id, '/resourcegroups/', resourceGroup().name, '/providers/Microsoft.Compute/disks/', 'elasticsearch-master-vm0_OSDisk')]"
+            },
+            "caching": "ReadWrite",
+            "createOption": "Attach"
+          },
+          "dataDisks": []
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[concat(resourceGroup().id, '/providers/Microsoft.Network/networkInterfaces/elasticsearch-master-nic0')]",
+              "properties": {
+                "primary": true
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
